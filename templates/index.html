@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Welcome {{user}}</h2>
+
+<div class="card">
+<h3>Add Task</h3>
+
+<form method="POST" action="/add">
+<input name="subject" placeholder="Subject">
+<input name="title" placeholder="Title">
+
+<select name="type">
+<option>Assignment</option>
+<option>Exam</option>
+<option>Seminar</option>
+</select>
+
+<input type="date" name="date">
+<button>Add</button>
+</form>
+</div>
+
+<div class="card">
+<h3>Filter by Date</h3>
+<form method="POST" action="/filter">
+<input type="date" name="date">
+<button>Filter</button>
+</form>
+</div>
+
+<h3>Your Tasks</h3>
+
+{% for t in tasks %}
+<div class="card">
+<h3>{{t.title}}</h3>
+<p>{{t.subject}}</p>
+<p>{{t.type}}</p>
+<p>{{t.date}}</p>
+<p>{{t.status}}</p>
+
+<a href="/complete/{{t.id}}">Complete</a>
+<a href="/delete/{{t.id}}">Delete</a>
+</div>
+{% endfor %}
+
+{% endblock %}
