@@ -5,53 +5,41 @@ import os
 app = Flask(__name__)
 app.secret_key = "secret123"
 
-# ---------- BASE PATH ----------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# ------------------------------
+# DATA FUNCTIONS (FIXED)
+# ------------------------------
 
-# ---------- DATA FUNCTIONS ----------
 def load_data():
-    file_path = os.path.join(BASE_DIR, "data.json")
-
-    # Create file if not exists
-    if not os.path.exists(file_path):
-        with open(file_path, "w") as f:
+    if not os.path.exists("data.json"):
+        with open("data.json", "w") as f:
             json.dump({"tasks": []}, f)
 
-    try:
-        with open(file_path, "r") as f:
-            return json.load(f)
-    except:
-        return {"tasks": []}
+    with open("data.json", "r") as f:
+        return json.load(f)
 
 
 def save_data(data):
-    file_path = os.path.join(BASE_DIR, "data.json")
-    with open(file_path, "w") as f:
+    with open("data.json", "w") as f:
         json.dump(data, f, indent=4)
 
 
 def load_users():
-    file_path = os.path.join(BASE_DIR, "users.json")
-
-    # Create file if not exists
-    if not os.path.exists(file_path):
-        with open(file_path, "w") as f:
+    if not os.path.exists("users.json"):
+        with open("users.json", "w") as f:
             json.dump({"users": []}, f)
 
-    try:
-        with open(file_path, "r") as f:
-            return json.load(f)
-    except:
-        return {"users": []}
+    with open("users.json", "r") as f:
+        return json.load(f)
 
 
 def save_users(data):
-    file_path = os.path.join(BASE_DIR, "users.json")
-    with open(file_path, "w") as f:
+    with open("users.json", "w") as f:
         json.dump(data, f, indent=4)
 
 
-# ---------- ROUTES ----------
+# ------------------------------
+# ROUTES
+# ------------------------------
 
 # HOME
 @app.route("/")
@@ -60,7 +48,7 @@ def home():
         return redirect("/login")
 
     data = load_data()
-    return render_template("index.html", tasks=data.get("tasks", []), user=session["user"])
+    return render_template("index.html", tasks=data["tasks"], user=session["user"])
 
 
 # LOGIN
@@ -69,7 +57,7 @@ def login():
     if request.method == "POST":
         users = load_users()
 
-        for u in users.get("users", []):
+        for u in users["users"]:
             if u["username"] == request.form["username"] and u["password"] == request.form["password"]:
                 session["user"] = u["username"]
                 return redirect("/")
@@ -85,7 +73,7 @@ def register():
     if request.method == "POST":
         users = load_users()
 
-        for u in users.get("users", []):
+        for u in users["users"]:
             if u["username"] == request.form["username"]:
                 return render_template("register.html", error="User already exists")
 
@@ -115,21 +103,16 @@ def add():
 
     data = load_data()
 
-    # Ensure "tasks" key exists
-    if "tasks" not in data:
-        data["tasks"] = []
-
     new_task = {
         "id": len(data["tasks"]) + 1,
-        "subject": request.form.get("subject", ""),
-        "title": request.form.get("title", ""),
-        "type": request.form.get("type", ""),
-        "date": request.form.get("date", ""),
+        "subject": request.form.get("subject"),
+        "title": request.form.get("title"),
+        "type": request.form.get("type"),
+        "date": request.form.get("date"),
         "status": "Pending"
     }
 
     data["tasks"].append(new_task)
-
     save_data(data)
 
     return redirect("/")
@@ -140,7 +123,7 @@ def add():
 def complete(id):
     data = load_data()
 
-    for t in data.get("tasks", []):
+    for t in data["tasks"]:
         if t["id"] == id:
             t["status"] = "Completed"
 
@@ -153,22 +136,22 @@ def complete(id):
 def delete(id):
     data = load_data()
 
-    data["tasks"] = [t for t in data.get("tasks", []) if t["id"] != id]
+    data["tasks"] = [t for t in data["tasks"] if t["id"] != id]
 
     save_data(data)
     return redirect("/")
 
 
-# FILTER BY DATE
+# FILTER
 @app.route("/filter", methods=["POST"])
 def filter():
     if "user" not in session:
         return redirect("/login")
 
     data = load_data()
-    date = request.form.get("date", "")
+    date = request.form.get("date")
 
-    filtered = [t for t in data.get("tasks", []) if t["date"] == date]
+    filtered = [t for t in data["tasks"] if t["date"] == date]
 
     return render_template("index.html", tasks=filtered, user=session["user"])
 
@@ -182,6 +165,8 @@ def settings():
     return render_template("settings.html", user=session["user"])
 
 
-# ---------- RUN ----------
+# ------------------------------
+# RUN
+# ------------------------------
 if __name__ == "__main__":
     app.run(debug=True)
