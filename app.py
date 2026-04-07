@@ -1,172 +1,222 @@
 from flask import Flask, render_template, request, redirect, session
-import json
-import os
+import json, os, time
 
 app = Flask(__name__)
 app.secret_key = "secret123"
 
-# ------------------------------
-# DATA FUNCTIONS (FIXED)
-# ------------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def load_data():
-    if not os.path.exists("data.json"):
-        with open("data.json", "w") as f:
-            json.dump({"tasks": []}, f)
-
-    with open("data.json", "r") as f:
-        return json.load(f)
+USERS_FILE = os.path.join(BASE_DIR, "users.json")
+DATA_FILE = os.path.join(BASE_DIR, "data.json")
 
 
-def save_data(data):
-    with open("data.json", "w") as f:
-        json.dump(data, f, indent=4)
-
-
-def load_users():
-    if not os.path.exists("users.json"):
-        with open("users.json", "w") as f:
+# ----------------------------
+# INIT FILES
+# ----------------------------
+def init_files():
+    if not os.path.exists(USERS_FILE):
+        with open(USERS_FILE, "w") as f:
             json.dump({"users": []}, f)
 
-    with open("users.json", "r") as f:
-        return json.load(f)
+    if not os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "w") as f:
+            json.dump({"tasks": []}, f)
+
+
+init_files()
+
+
+# ----------------------------
+# LOAD / SAVE
+# ----------------------------
+def load_users():
+    try:
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return {"users": []}
 
 
 def save_users(data):
-    with open("users.json", "w") as f:
+    with open(USERS_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
 
-# ------------------------------
+def load_tasks():
+    try:
+        with open(DATA_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return {"tasks": []}
+
+
+def save_tasks(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+
+# ----------------------------
 # ROUTES
-# ------------------------------
+# ----------------------------
 
-# HOME
+# LOGIN PAGE
 @app.route("/")
-def home():
-    if "user" not in session:
-        return redirect("/login")
-
-    data = load_data()
-    return render_template("index.html", tasks=data["tasks"], user=session["user"])
+def index():
+    return render_template("index.html")
 
 
 # LOGIN
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login", methods=["POST"])
 def login():
-    if request.method == "POST":
-        users = load_users()
+    username = request.form.get("username")
+    password = request.form.get("password")
 
-        for u in users["users"]:
-            if u["username"] == request.form["username"] and u["password"] == request.form["password"]:
-                session["user"] = u["username"]
-                return redirect("/")
+    data = load_users()
 
-        return render_template("login.html", error="Invalid username or password")
+    for user in data["users"]:
+        if user["username"] == username and user["password"] == password:
+            session["user"] = username
+            session["name"] = user.get("name", username)  # fallback safety
+            return redirect("/dashboard")
 
-    return render_template("login.html")
+    return render_template("index.html", error="Invalid credentials")
 
 
 # REGISTER
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == "POST":
-        users = load_users()
+    if request.method == "GET":
+        return render_template("register.html")
 
-        for u in users["users"]:
-            if u["username"] == request.form["username"]:
-                return render_template("register.html", error="User already exists")
+    name = request.form.get("name")
+    username = request.form.get("username")
+    password = request.form.get("password")
 
-        users["users"].append({
-            "username": request.form["username"],
-            "password": request.form["password"]
-        })
+    data = load_users()
 
-        save_users(users)
-        return redirect("/login")
+    for user in data["users"]:
+        if user["username"] == username:
+            return render_template("register.html", error="User already exists")
 
-    return render_template("register.html")
+    data["users"].append({
+        "name": name,
+        "username": username,
+        "password": password
+    })
+
+    save_users(data)
+    return redirect("/")
 
 
-# LOGOUT
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/login")
+# DASHBOARD
+@app.route("/dashboard")
+def dashboard():
+    if "user" not in session:
+        return redirect("/")
+
+    data = load_tasks()
+
+    tasks = [t for t in data["tasks"] if t["user"] == session["user"]]
+
+    return render_template(
+        "dashboard.html",
+        tasks=tasks,
+        user=session.get("name")  # show name instead of username
+    )
 
 
 # ADD TASK
 @app.route("/add", methods=["POST"])
-def add():
+def add_task():
     if "user" not in session:
-        return redirect("/login")
+        return redirect("/")
 
-    data = load_data()
+    subject = request.form.get("subject")
+    title = request.form.get("title")
+    type_ = request.form.get("type")
+    date = request.form.get("date")
 
-    new_task = {
-        "id": len(data["tasks"]) + 1,
-        "subject": request.form.get("subject"),
-        "title": request.form.get("title"),
-        "type": request.form.get("type"),
-        "date": request.form.get("date"),
-        "status": "Pending"
-    }
+    if not title:
+        return redirect("/dashboard")
 
-    data["tasks"].append(new_task)
-    save_data(data)
+    data = load_tasks()
 
-    return redirect("/")
+    data["tasks"].append({
+        "id": str(time.time()),
+        "subject": subject,
+        "title": title,
+        "type": type_,
+        "date": date,
+        "status": "Pending",
+        "user": session["user"]
+    })
+
+    save_tasks(data)
+
+    return redirect("/dashboard")
 
 
 # COMPLETE TASK
-@app.route("/complete/<int:id>")
+@app.route("/complete/<id>")
 def complete(id):
-    data = load_data()
+    data = load_tasks()
 
     for t in data["tasks"]:
         if t["id"] == id:
             t["status"] = "Completed"
 
-    save_data(data)
-    return redirect("/")
+    save_tasks(data)
+    return redirect("/dashboard")
 
 
 # DELETE TASK
-@app.route("/delete/<int:id>")
+@app.route("/delete/<id>")
 def delete(id):
-    data = load_data()
+    data = load_tasks()
 
     data["tasks"] = [t for t in data["tasks"] if t["id"] != id]
 
-    save_data(data)
-    return redirect("/")
+    save_tasks(data)
+    return redirect("/dashboard")
 
 
-# FILTER
+# FILTER TASK
 @app.route("/filter", methods=["POST"])
-def filter():
+def filter_tasks():
     if "user" not in session:
-        return redirect("/login")
+        return redirect("/")
 
-    data = load_data()
     date = request.form.get("date")
 
-    filtered = [t for t in data["tasks"] if t["date"] == date]
+    data = load_tasks()
 
-    return render_template("index.html", tasks=filtered, user=session["user"])
+    tasks = [
+        t for t in data["tasks"]
+        if t["user"] == session["user"] and t["date"] == date
+    ]
+
+    return render_template(
+        "dashboard.html",
+        tasks=tasks,
+        user=session.get("name")
+    )
 
 
 # SETTINGS
 @app.route("/settings")
 def settings():
     if "user" not in session:
-        return redirect("/login")
+        return redirect("/")
+    return render_template("settings.html", user=session.get("name"))
 
-    return render_template("settings.html", user=session["user"])
+
+# LOGOUT
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
 
 
-# ------------------------------
 # RUN
-# ------------------------------
 if __name__ == "__main__":
     app.run(debug=True)

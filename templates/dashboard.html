@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+/* HEADER */
+h2 {
+    margin-bottom: 20px;
+}
+
+/* GRID */
+.container-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+/* CARD */
+.card {
+    background: #ffffff;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    transition: 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+/* INPUTS */
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    outline: none;
+    box-sizing: border-box;
+}
+
+/* BUTTON */
+button {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(45deg, #6366f1, #4f46e5);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    transform: scale(1.05);
+}
+
+/* TASK LIST */
+.task-list {
+    margin-top: 20px;
+}
+
+/* TASK CARD */
+.task {
+    background: #f9fafb;
+    border-left: 12px solid #6366f1;
+    border-right: 12px solid #6366f1;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 10px;
+    color: #111;
+}
+.task p {
+    color: #333;
+}
+
+.task h3 {
+    color: #000;
+}
+
+/* STATUS */
+.status {
+    font-weight: bold;
+}
+
+.completed {
+    color: green;
+}
+
+.pending {
+    color: orange;
+}
+
+/* ACTION LINKS */
+.actions {
+    margin-top: 10px;
+}
+
+.actions a {
+    margin-right: 10px;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.actions a:first-child {
+    color: green;
+}
+
+.actions a:last-child {
+    color: red;
+}
+</style>
+
+<h2>Welcome {{user}}</h2>
+
+<div class="container-grid">
+
+    <!-- ADD TASK -->
+    <div class="card">
+        <h3>Add Task</h3>
+
+        <form method="POST" action="/add">
+            <input name="subject" placeholder="Subject" required>
+            <input name="title" placeholder="Title" required>
+
+            <select name="type">
+                <option>Assignment</option>
+                <option>Exam</option>
+                <option>Seminar</option>
+            </select>
+
+            <input type="date" name="date" required>
+            <button>Add Task</button>
+        </form>
+    </div>
+
+    <!-- FILTER -->
+    <div class="card">
+        <h3>Filter by Date</h3>
+        <form method="POST" action="/filter">
+            <input type="date" name="date" required>
+            <button>Filter</button>
+        </form>
+    </div>
+
+</div>
+
+<!-- TASK LIST -->
+<div class="task-list">
+<h3>Your Tasks</h3>
+
+{% if tasks %}
+    {% for t in tasks %}
+    <div class="task">
+        <h3>{{t.title}}</h3>
+        <p><b>Subject:</b> {{t.subject}}</p>
+        <p><b>Type:</b> {{t.type}}</p>
+        <p><b>Date:</b> {{t.date}}</p>
+
+        <p class="status {% if t.status == 'Completed' %}completed{% else %}pending{% endif %}">
+            {{t.status}}
+        </p>
+
+        <div class="actions">
+            <a href="/complete/{{t.id}}">✔ Complete</a>
+            <a href="/delete/{{t.id}}">🗑 Delete</a>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <p>No tasks yet</p>
+{% endif %}
+
+</div>
+
+{% endblock %}
