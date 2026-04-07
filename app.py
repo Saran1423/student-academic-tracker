@@ -11,33 +11,45 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # ---------- DATA FUNCTIONS ----------
 def load_data():
     file_path = os.path.join(BASE_DIR, "data.json")
+
+    # Create file if not exists
     if not os.path.exists(file_path):
-        return {"tasks": []}
+        with open(file_path, "w") as f:
+            json.dump({"tasks": []}, f)
+
     try:
-        with open(file_path) as f:
+        with open(file_path, "r") as f:
             return json.load(f)
     except:
         return {"tasks": []}
+
 
 def save_data(data):
     file_path = os.path.join(BASE_DIR, "data.json")
     with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
 
+
 def load_users():
     file_path = os.path.join(BASE_DIR, "users.json")
+
+    # Create file if not exists
     if not os.path.exists(file_path):
-        return {"users": []}
+        with open(file_path, "w") as f:
+            json.dump({"users": []}, f)
+
     try:
-        with open(file_path) as f:
+        with open(file_path, "r") as f:
             return json.load(f)
     except:
         return {"users": []}
+
 
 def save_users(data):
     file_path = os.path.join(BASE_DIR, "users.json")
     with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
+
 
 # ---------- ROUTES ----------
 
@@ -48,7 +60,7 @@ def home():
         return redirect("/login")
 
     data = load_data()
-    return render_template("index.html", tasks=data["tasks"], user=session["user"])
+    return render_template("index.html", tasks=data.get("tasks", []), user=session["user"])
 
 
 # LOGIN
@@ -57,7 +69,7 @@ def login():
     if request.method == "POST":
         users = load_users()
 
-        for u in users["users"]:
+        for u in users.get("users", []):
             if u["username"] == request.form["username"] and u["password"] == request.form["password"]:
                 session["user"] = u["username"]
                 return redirect("/")
@@ -73,8 +85,7 @@ def register():
     if request.method == "POST":
         users = load_users()
 
-        # check duplicate user
-        for u in users["users"]:
+        for u in users.get("users", []):
             if u["username"] == request.form["username"]:
                 return render_template("register.html", error="User already exists")
 
@@ -104,16 +115,21 @@ def add():
 
     data = load_data()
 
+    # Ensure "tasks" key exists
+    if "tasks" not in data:
+        data["tasks"] = []
+
     new_task = {
         "id": len(data["tasks"]) + 1,
-        "subject": request.form["subject"],
-        "title": request.form["title"],
-        "type": request.form["type"],
-        "date": request.form["date"],
+        "subject": request.form.get("subject", ""),
+        "title": request.form.get("title", ""),
+        "type": request.form.get("type", ""),
+        "date": request.form.get("date", ""),
         "status": "Pending"
     }
 
     data["tasks"].append(new_task)
+
     save_data(data)
 
     return redirect("/")
@@ -124,7 +140,7 @@ def add():
 def complete(id):
     data = load_data()
 
-    for t in data["tasks"]:
+    for t in data.get("tasks", []):
         if t["id"] == id:
             t["status"] = "Completed"
 
@@ -137,7 +153,7 @@ def complete(id):
 def delete(id):
     data = load_data()
 
-    data["tasks"] = [t for t in data["tasks"] if t["id"] != id]
+    data["tasks"] = [t for t in data.get("tasks", []) if t["id"] != id]
 
     save_data(data)
     return redirect("/")
@@ -146,15 +162,18 @@ def delete(id):
 # FILTER BY DATE
 @app.route("/filter", methods=["POST"])
 def filter():
-    data = load_data()
-    date = request.form["date"]
+    if "user" not in session:
+        return redirect("/login")
 
-    filtered = [t for t in data["tasks"] if t["date"] == date]
+    data = load_data()
+    date = request.form.get("date", "")
+
+    filtered = [t for t in data.get("tasks", []) if t["date"] == date]
 
     return render_template("index.html", tasks=filtered, user=session["user"])
 
 
-# SETTINGS PAGE
+# SETTINGS
 @app.route("/settings")
 def settings():
     if "user" not in session:
